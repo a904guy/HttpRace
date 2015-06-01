@@ -1,4 +1,4 @@
-from HttpRace import HttpRace
+import HttpRace
 
 __author__ = 'Andy Hawkins'
 __email__ = 'andy@a904guy.com'
