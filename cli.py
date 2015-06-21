@@ -24,11 +24,12 @@ import HttpRace
 
 parser = argparse.ArgumentParser(description="HttpRace, HTTP Race Condition Tool")
 harGroup = parser.add_argument_group('HAR', 'Import HAR file(s) to rune')
-harGroup.add_argument('--har', '-ha', help='Specify HAR File(s)', type=argparse.FileType('r'), nargs='+')
+harGroup.add_argument('--har', '-ha', help='Specify HAR File(s)', type=argparse.FileType('r'), action='append')
 defaultGroup = parser.add_argument_group('CLI', 'Construct Request From CLI')
-defaultGroup.add_argument('--url', '-u', help='Complete URL', nargs='+')
+defaultGroup.add_argument('--url', '-u', help='Complete URL', action='append')
 
 args = parser.parse_args()
+print(args.url)
 
 race = HttpRace.HttpRace()
 

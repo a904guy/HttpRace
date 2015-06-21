@@ -91,7 +91,7 @@ class HttpRace:
 
             print('Thread: %i, Executing: %s @ %f' % (threading.get_ident(), self._uri, time.perf_counter()))
 
-            self.__socket.send(str.encode(self.__CRLF))
+            self.__socket.send(str.encode("%s" % self.__CRLF))
             self.response = (self.__socket.recv(100000000))
             self.__socket.shutdown(1)
             self.__socket.close()
@@ -109,7 +109,9 @@ class HttpRace:
 
     def execute(self):
         for request in self.races:
-            threading.Thread(target=request.prepare_run).start()
+            thread = threading.Thread(target=request.prepare_run)
+            thread.start()
+            thread.join()
 
         ready = False
         while not ready:
