@@ -141,8 +141,6 @@ class HttpRace:
             threads.append(thread)
         for thread in threads:
             thread.join()
-        # while not threading.active_count():
-        #     time.sleep(0.000001)
         end = time.perf_counter()
 
         print("All Threads Executed: %f" % (end-start))
