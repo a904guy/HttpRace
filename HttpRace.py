@@ -73,7 +73,9 @@ class HttpRace:
         def prepare_run(self):
             # TODO: Implement HTTPS
 
-            print('Thread: %i, Prepare Run: %s, @ %f' % (threading.get_ident(), self._uri, time.perf_counter()))
+            name = threading.current_thread().getName()
+
+            print('Thread: %s, Prepare Run: %s, @ %f' % (name, self._uri, time.perf_counter()))
 
             self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__socket.settimeout(self.__timeout)
@@ -85,18 +87,20 @@ class HttpRace:
                 self.__socket.send(str.encode("%s: %s" % (context, data)))
             self.__promise.status = True
 
-            print('Thread: %i, Ready! @ %f' % (threading.get_ident(), time.perf_counter()))
+            print('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
 
         def execute_run(self):
 
-            print('Thread: %i, Executing: %s @ %f' % (threading.get_ident(), self._uri, time.perf_counter()))
+            name = threading.current_thread().getName()
+
+            print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
 
             self.__socket.send(str.encode("%s" % self.__CRLF))
-            self.response = (self.__socket.recv(100000000))
+            self.response = (self.__socket.recv(1))
             self.__socket.shutdown(1)
             self.__socket.close()
 
-            print('Thread: %i, Executed! %f' % (threading.get_ident(), time.perf_counter()))
+            print('Thread: %s, Executed! %f' % (name, time.perf_counter()))
 
         def status(self):
             return self.__promise.status
@@ -108,8 +112,11 @@ class HttpRace:
                 pass
 
     def execute(self):
+        n = 0
         for request in self.races:
+            n += 1
             thread = threading.Thread(target=request.prepare_run)
+            thread.setName(n)
             thread.start()
             thread.join()
 
@@ -123,8 +130,22 @@ class HttpRace:
                 ready = True
             time.sleep(0.1)
 
+        n = 0
+        threads = []
+        start = time.perf_counter()
         for request in self.races:
-            threading.Thread(target=request.execute_run).start()
+            n += 1
+            thread = threading.Thread(target=request.execute_run)
+            thread.setName(n)
+            thread.start()
+            threads.append(thread)
+        for thread in threads:
+            thread.join()
+        # while not threading.active_count():
+        #     time.sleep(0.000001)
+        end = time.perf_counter()
+
+        print("All Threads Executed: %f" % (end-start))
 
     # Helper Functions
     def build_request(self):
