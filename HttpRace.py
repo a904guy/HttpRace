@@ -26,148 +26,159 @@ import urllib.parse as parse
 
 
 class HttpRace:
-    races = []
-    laps = 1
+	races = []
+	laps = 1
 
-    def __init__(self):
-        pass
+	def __init__(self):
+		pass
 
-    class __Request:
-        name = None
-        __timeout = 100
-        __CRLF = u"\r\n\r\n"
-        __socket = None
-        __promise = None
-        response = None
-        _method = 'GET'
-        _scheme = 'http'
-        _host = None
-        _port = 80
-        _uri = None
-        _headers = {}
+	class __Request:
+		name = None
+		__timeout = 100
+		__CRLF = "\r\n"
+		__socket = None
+		__promise = None
+		response = None
+		_method = 'GET'
+		_scheme = 'http'
+		_body = None
+		_host = None
+		_port = 80
+		_uri = None
+		_headers = {}
 
-        def __init__(self):
-            self.__promise = self.__Promise()
-            pass
+		def __init__(self):
+			self.__promise = self.__Promise()
+			pass
 
-        def har(self, harparse, page):
-            # TODO: Finish Implement
-            pass
+		def har(self, request):
+			# TODO: Finish Implement
+			self._method = request['method']
+			self.url(request['url'])
+			for header in request['headers']:
+				self.header(header['name'], header['value'])
 
-        def host(self, host):
-            self._host = host
+		def host(self, host):
+			self._host = host
 
-        def url(self, this_url):
-            __parse = parse.urlparse(this_url)
-            self._host = __parse.netloc
-            if __parse.scheme == 'https':
-                self._scheme = 'https'
-                self._port = 443
-            self._uri = str(parse.urljoin(__parse.netloc, __parse.path))
-            return self
+		def url(self, this_url):
+			__parse = parse.urlparse(this_url)
+			self.host(__parse.netloc)
+			if __parse.scheme == 'https':
+				self._scheme = 'https'
+				self._port = 443
+			self._uri = "%s%s" % (__parse.netloc, __parse.path)
+			return self
 
-        def uri(self, uri):
-            self._uri = uri
-            return self
+		def uri(self, uri):
+			self._uri = uri
+			return self
 
-        def prepare_run(self):
-            # TODO: Implement HTTPS
+		def header(self, name, value):
+			self._headers[name] = value
 
-            name = threading.current_thread().getName()
+		def body(self, mime, text):
+			self.header('Content-Type', mime)
+			self._body = text
 
-            print('Thread: %s, Prepare Run: %s, @ %f' % (name, self._uri, time.perf_counter()))
+		def prepare_run(self):
+			# TODO: Implement HTTPS
 
-            self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.__socket.settimeout(self.__timeout)
-            self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.__socket.connect((self._host, self._port))
-            self.__socket.send(str.encode("%s %s HTTP/1.0" % (self._method, self._uri)))
-            self.__socket.send(str.encode("Host: %s" % self._host))
-            for context, data in enumerate(self._headers):
-                self.__socket.send(str.encode("%s: %s" % (context, data)))
-            self.__promise.status = True
+			name = threading.current_thread().getName()
 
-            print('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
+			print('Thread: %s, Prepare Run: %s:%i, @ %f' % (name, self._uri, self._port, time.perf_counter()))
 
-        def execute_run(self):
+			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.__socket.settimeout(self.__timeout)
+			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self.__socket.connect((self._host, self._port))
+			self.__socket.send(str.encode("%s %s HTTP/1.0 %s" % (self._method, self._uri, self.__CRLF)))
+			self.__socket.send(str.encode("Host: %s %s" % (self._host, self.__CRLF)))
+			for context, data in enumerate(self._headers):
+				self.__socket.send(str.encode("%s: %s %s" % (context, data, self.__CRLF)))
+			self.__promise.status = True
 
-            name = threading.current_thread().getName()
+			print('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
 
-            print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
+		def execute_run(self):
 
-            self.__socket.send(str.encode("%s" % self.__CRLF))
-            self.response = (self.__socket.recv(1))
-            self.__socket.shutdown(1)
-            self.__socket.close()
+			name = threading.current_thread().getName()
 
-            print('Thread: %s, Executed! %f' % (name, time.perf_counter()))
+			print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
 
-        def status(self):
-            return self.__promise.status
+			self.__socket.send(str.encode("%s%s" % (self.__CRLF,self.__CRLF)))
+			self.response = (self.__socket.recv(10000))
+			self.__socket.shutdown(1)
+			self.__socket.close()
 
-        class __Promise:
-            status = False
+			print('Thread: %s, Executed! %f' % (name, time.perf_counter()))
 
-            def __init__(self):
-                pass
+		def status(self):
+			return self.__promise.status
 
-    def execute(self):
-        n = 0
-        for request in self.races:
-            n += 1
-            thread = threading.Thread(target=request.prepare_run)
-            thread.setName(n)
-            thread.start()
-            thread.join()
+		class __Promise:
+			status = False
 
-        ready = False
-        while not ready:
-            check = True
-            for request in self.races:
-                if not request.status:
-                    check = False
-            if check:
-                ready = True
-            time.sleep(0.1)
+			def __init__(self):
+				pass
 
-        n = 0
-        threads = []
-        start = time.perf_counter()
-        for request in self.races:
-            n += 1
-            thread = threading.Thread(target=request.execute_run)
-            thread.setName(n)
-            thread.start()
-            threads.append(thread)
-        for thread in threads:
-            thread.join()
-        end = time.perf_counter()
+	def execute(self):
+		n = 0
+		for request in self.races:
+			n += 1
+			thread = threading.Thread(target=request.prepare_run)
+			thread.setName(n)
+			thread.start()
+			thread.join()
 
-        print("All Threads Executed: %f" % (end-start))
+		ready = False
+		while not ready:
+			check = True
+			for request in self.races:
+				if not request.status:
+					check = False
+			if check:
+				ready = True
+			time.sleep(0.1)
 
-    # Helper Functions
-    def build_request(self):
-        self.races.append(self.__Request())
+		n = 0
+		threads = []
+		start = time.perf_counter()
+		for request in self.races:
+			n += 1
+			thread = threading.Thread(target=request.execute_run)
+			thread.setName(n)
+			thread.start()
+			threads.append(thread)
+		for thread in threads:
+			thread.join()
+		end = time.perf_counter()
 
-        return self.races[-1]
+		print("All Threads Executed: %f" % (end - start))
 
-    def har(self, har):
+	# Helper Functions
+	def build_request(self):
+		self.races.append(self.__Request())
 
-        ret = []
+		return self.races[-1]
 
-        import json
-        from haralyzer import HarParser, HarPage
+	def har(self, har):
 
-        __har = HarParser(json.load(har))
+		ret = []
 
-        for __page in __har.pages:
-            assert isinstance(__page, HarPage, None)
-            __request = self.__Request()
-            __request.har(__har, __page)
-            self.races.append(__request)
-            ret.appen(__request)
+		import json
 
-        return ret
+		raw = json.load(har)
+
+		if 'log' in raw and 'entries' in raw['log']:
+			for n in range(0, len(raw['log']['entries'])):
+				race = self.__Request()
+				race.har(raw['log']['entries'][n]['request'])
+				ret.append(race)
+				self.races.append(race)
+
+		return ret
+
 
 # Debug
 p('Debug Active')
