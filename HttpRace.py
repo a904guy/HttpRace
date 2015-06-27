@@ -21,28 +21,38 @@ import threading
 import socket
 import ssl
 import time
-
 from pprint import pprint as p
 import urllib.parse as parse
+
+import socks
 
 
 class HttpRace:
 	races = []
 	laps = 1
+	_proxy = None
 
 	def __init__(self):
 		pass
 
+	def proxy(self, proxy='localhost:8080'):
+		# Supports SOCK5 Proxies, Format 'address:port'
+
+		# Setup Proxy Information
+		self._proxy = proxy.strip("'").split(':')
+
 	class __Request:
 		name = None
-		__timeout = 100
+		__timeout = 5
 		__CRLF = "\r\n"
+		_proxy = None
+		__proxy = None
 		__socket = None
 		__promise = None
 		response = None
 		_method = 'GET'
 		_scheme = 'http'
-		_body = None
+		_body = []
 		_host = None
 		_port = 80
 		_uri = None
@@ -50,24 +60,39 @@ class HttpRace:
 
 		def __init__(self):
 			self.__promise = self.__Promise()
-			pass
 
 		def har(self, request):
+
+			# Parse GET/POST
 			self._method = request['method']
+
+			# Parse URL
 			self.url(request['url'])
+
+			# Parse Headers
 			for header in request['headers']:
 				self.header(header['name'], header['value'])
+
+			# Parse Post Data
+			if 'postData' in request:
+				mime = request['postData']['mimeType']
+				for data in request['postData']['params']:
+					self.body(mime, data['name'], data['value'])
 
 		def host(self, host):
 			self._host = host
 
 		def url(self, this_url):
 			__parse = parse.urlparse(this_url)
+			# p(__parse);
 			self.host(__parse.netloc)
 			if __parse.scheme == 'https':
 				self._scheme = 'https'
 				self._port = 443
-			self._uri = "%s%s" % (__parse.netloc, __parse.path)
+			self._uri = "%s" % __parse.path
+			if __parse.query:
+				self._uri += "?%s" % __parse.query
+
 			return self
 
 		def uri(self, uri):
@@ -77,29 +102,52 @@ class HttpRace:
 		def header(self, name, value):
 			self._headers[name] = value
 
-		def body(self, mime, text):
+		def body(self, mime, key, value):
 			self.header('Content-Type', mime)
-			self._body = text
+			self._body.append((key, value))
 
-		def prepare_run(self):
+		def prepare_run(self, proxy=None):
 			name = threading.current_thread().getName()
 
-			print('Thread: %s, Prepare Run: %s:%i, @ %f' % (
-				name, self._uri, self._port, time.perf_counter()))
+			print('Thread: %s, Prepare Run: %s%s:%i, @ %f' % (
+				name, self._host, self._uri, self._port, time.perf_counter()))
 
+			# Setup Socket
 			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+			# Use Proxy
+			if proxy:
+				self.__socket = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
+				self.__socket.set_proxy(socks.SOCKS5, proxy[0], int(proxy[1]))
+
 			self.__socket.settimeout(self.__timeout)
 
+			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+			# Bind SSL
 			if self._scheme == 'https':
 				self.__socket = ssl.wrap_socket(self.__socket)
 
-			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			# Open Connection To Server
 			self.__socket.connect((self._host, self._port))
+
+			# Send Initial Header
 			self.__socket.send(
-				str.encode("%s %s HTTP/1.0 %s" % (self._method, self._uri, self.__CRLF)))
+				str.encode("%s %s HTTP/1.1 %s" % (self._method, self._uri, self.__CRLF)))
+
+			# Send Host Name
 			self.__socket.send(str.encode("Host: %s %s" % (self._host, self.__CRLF)))
-			for context, data in enumerate(self._headers):
-				self.__socket.send(str.encode("%s: %s %s" % (context, data, self.__CRLF)))
+
+			# Send Headers
+			for header in self._headers:
+				self.__socket.send(str.encode("%s: %s %s" % (header, self._headers[header], self.__CRLF)))
+
+			# Send GET/POST Body (If any)
+			if len(self._body) > 0:
+				self.__socket.send(str.encode("%s%s" % (self.__CRLF, self.__CRLF)))
+				self.__socket.send(str.encode("%s%s" % (parse.urlencode(self._body), self.__CRLF)))
+
+			# Tell HttpRace We're Ready To Execute
 			self.__promise.status = True
 
 			print('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
@@ -108,10 +156,15 @@ class HttpRace:
 
 			name = threading.current_thread().getName()
 
-			print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
+			print('Thread: %s, Executing:  %s%s:%i @ %f' % (name, self._host, self._uri, self._port, time.perf_counter()))
 
+			# Send Termination Line Endings
 			self.__socket.send(str.encode("%s%s" % (self.__CRLF, self.__CRLF)))
+
+			# Start Receiving ... some.
 			self.response = (self.__socket.recv(1))
+
+			# Close The Socket
 			self.__socket.shutdown(1)
 			self.__socket.close()
 
@@ -127,10 +180,11 @@ class HttpRace:
 				pass
 
 	def execute(self):
+
 		n = 0
 		for request in self.races:
 			n += 1
-			thread = threading.Thread(target=request.prepare_run)
+			thread = threading.Thread(target=request.prepare_run, args=[self._proxy])
 			thread.setName(n)
 			thread.start()
 			thread.join()
@@ -178,11 +232,12 @@ class HttpRace:
 			for n in range(0, len(raw['log']['entries'])):
 				race = self.__Request()
 				race.har(raw['log']['entries'][n]['request'])
+				p(race.__dict__)
 				ret.append(race)
 				self.races.append(race)
 
 		return ret
 
 
-# Debug
-p('Debug Active')
+# Keep p import, Remove on release
+p('HttpRace %s by %s' % (__version__, __author__))
