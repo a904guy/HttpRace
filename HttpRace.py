@@ -19,6 +19,7 @@ __contact__ = __email__
 
 import threading
 import socket
+import ssl
 import time
 
 from pprint import pprint as p
@@ -81,17 +82,21 @@ class HttpRace:
 			self._body = text
 
 		def prepare_run(self):
-			# TODO: Implement HTTPS
-
 			name = threading.current_thread().getName()
 
-			print('Thread: %s, Prepare Run: %s:%i, @ %f' % (name, self._uri, self._port, time.perf_counter()))
+			print('Thread: %s, Prepare Run: %s:%i, @ %f' % (
+				name, self._uri, self._port, time.perf_counter()))
 
 			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.__socket.settimeout(self.__timeout)
+
+			if self._scheme == 'https':
+				self.__socket = ssl.wrap_socket(self.__socket)
+
 			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self.__socket.connect((self._host, self._port))
-			self.__socket.send(str.encode("%s %s HTTP/1.0 %s" % (self._method, self._uri, self.__CRLF)))
+			self.__socket.send(
+				str.encode("%s %s HTTP/1.0 %s" % (self._method, self._uri, self.__CRLF)))
 			self.__socket.send(str.encode("Host: %s %s" % (self._host, self.__CRLF)))
 			for context, data in enumerate(self._headers):
 				self.__socket.send(str.encode("%s: %s %s" % (context, data, self.__CRLF)))
@@ -105,7 +110,7 @@ class HttpRace:
 
 			print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
 
-			self.__socket.send(str.encode("%s%s" % (self.__CRLF,self.__CRLF)))
+			self.__socket.send(str.encode("%s%s" % (self.__CRLF, self.__CRLF)))
 			self.response = (self.__socket.recv(1))
 			self.__socket.shutdown(1)
 			self.__socket.close()
