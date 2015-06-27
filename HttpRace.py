@@ -232,7 +232,7 @@ class HttpRace:
 			for n in range(0, len(raw['log']['entries'])):
 				race = self.__Request()
 				race.har(raw['log']['entries'][n]['request'])
-				p(race.__dict__)
+				# p(race.__dict__)
 				ret.append(race)
 				self.races.append(race)
 
