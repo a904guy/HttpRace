@@ -52,7 +52,6 @@ class HttpRace:
 			pass
 
 		def har(self, request):
-			# TODO: Finish Implement
 			self._method = request['method']
 			self.url(request['url'])
 			for header in request['headers']:
@@ -107,7 +106,7 @@ class HttpRace:
 			print('Thread: %s, Executing: %s @ %f' % (name, self._uri, time.perf_counter()))
 
 			self.__socket.send(str.encode("%s%s" % (self.__CRLF,self.__CRLF)))
-			self.response = (self.__socket.recv(10000))
+			self.response = (self.__socket.recv(1))
 			self.__socket.shutdown(1)
 			self.__socket.close()
 
