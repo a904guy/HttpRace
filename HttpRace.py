@@ -115,7 +115,7 @@ class HttpRace:
 			# Setup Socket
 			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-			# Use Proxy
+			# Use Proxy # TODO: Make Work with SSL Wrapper below.
 			if proxy:
 				self.__socket = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
 				self.__socket.set_proxy(socks.SOCKS5, proxy[0], int(proxy[1]))
