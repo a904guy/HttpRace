@@ -2,14 +2,6 @@ __project__ = 'HttpRace'
 __author__ = 'Andy Hawkins'
 __email__ = 'andy@a940guy.com'
 __date__ = '6/21/15 10:54 AM'
-__company__ = '''
-      ___ ___ ___
-  ___| . |   | | |___ _ _ _ _
- | .'|_  | | |_  | . | | | | |
- |__,|___|___| |_|_  |___|_  |
-                 |___|   |___|
-ANDY@A904GUY.COM - A904GUY.COM
-'''
 __website__ = "http://a904guy.com/"
 __version__ = "0.0.1"
 __license__ = "CC-BY-SA"
