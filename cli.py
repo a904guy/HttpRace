@@ -24,14 +24,12 @@ import HttpRace
 
 parser = argparse.ArgumentParser(description="HttpRace, HTTP Race Condition Tool")
 harGroup = parser.add_argument_group('HAR', 'Import HAR file(s) to rune')
-harGroup.add_argument('--har', '-ha', help='Specify HAR File(s)', type=argparse.FileType('r'),
-                      action='append')
+harGroup.add_argument('--har', '-ha', help='Specify HAR File(s)', type=argparse.FileType(), action='append')
 defaultGroup = parser.add_argument_group('CLI', 'Construct Request From CLI')
 defaultGroup.add_argument('--url', '-u', help='Complete URL', action='append')
 parser.add_argument('--proxy', '-py', help='Use this proxy. (http://localhost:7777)')
 
 args = parser.parse_args()
-print(args)
 race = HttpRace.HttpRace()
 
 if args.proxy:

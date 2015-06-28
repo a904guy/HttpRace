@@ -125,11 +125,11 @@ class HttpRace:
 				name, self._host, self._uri, self._port, time.perf_counter()))
 
 			# Setup Socket
-			self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self.__socket = socket.socket()
 
 			# Use Proxy # TODO: Make Work with SSL Wrapper below.
 			if proxy:
-				self.__socket = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
+				self.__socket = socks.socksocket()
 				self.__socket.set_proxy(socks.SOCKS5, proxy[0], int(proxy[1]))
 
 			self.__socket.settimeout(self.__timeout)
