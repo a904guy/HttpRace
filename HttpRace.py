@@ -100,6 +100,8 @@ class HttpRace:
 			return self
 
 		def header(self, name, value):
+			if name == 'Host':
+				return
 			self._headers[name] = value
 
 		def body(self, mime, key, value):
@@ -122,7 +124,7 @@ class HttpRace:
 
 			self.__socket.settimeout(self.__timeout)
 
-			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			# self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 			# Bind SSL
 			if self._scheme == 'https':
@@ -158,11 +160,13 @@ class HttpRace:
 
 			print('Thread: %s, Executing:  %s%s:%i @ %f' % (name, self._host, self._uri, self._port, time.perf_counter()))
 
+			# p(self.__socket)
+
 			# Send Termination Line Endings
 			self.__socket.send(str.encode("%s%s" % (self.__CRLF, self.__CRLF)))
 
 			# Start Receiving ... some.
-			self.response = (self.__socket.recv(1))
+			self.response = (self.__socket.recv(187))
 
 			# Close The Socket
 			self.__socket.shutdown(1)
@@ -229,13 +233,12 @@ class HttpRace:
 		raw = json.load(har)
 
 		if 'log' in raw and 'entries' in raw['log']:
-			for n in range(0, len(raw['log']['entries'])):
+			for n in range(0, len(raw['log']['entries']) - 1):
 				race = self.__Request()
-				race.har(raw['log']['entries'][n]['request'])
-				# p(race.__dict__)
+				request = raw['log']['entries'][n]['request']  # Silly Python.
+				race.har(request)
 				ret.append(race)
 				self.races.append(race)
-
 		return ret
 
 
