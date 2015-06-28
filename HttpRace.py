@@ -84,12 +84,22 @@ class HttpRace:
 
 		def url(self, this_url):
 			__parse = parse.urlparse(this_url)
-			# p(__parse);
+
+			# Set Host
 			self.host(__parse.netloc)
+
+			# Set Schema / Port
 			if __parse.scheme == 'https':
 				self._scheme = 'https'
 				self._port = 443
-			self._uri = "%s" % __parse.path
+
+			# Set URI Path
+			if __parse.path != '':
+				self._uri = "%s" % __parse.path
+			else:
+				self._uri = '/'
+
+			# Append Query to Path
 			if __parse.query:
 				self._uri += "?%s" % __parse.query
 
@@ -124,11 +134,15 @@ class HttpRace:
 
 			self.__socket.settimeout(self.__timeout)
 
-			# self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			# p(self.__socket)
+
+			self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 			# Bind SSL
 			if self._scheme == 'https':
 				self.__socket = ssl.wrap_socket(self.__socket)
+
+			# p(self.__socket)
 
 			# Open Connection To Server
 			self.__socket.connect((self._host, self._port))
