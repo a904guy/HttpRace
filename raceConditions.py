@@ -20,7 +20,7 @@ import HttpRace
 
 race = HttpRace.HttpRace()
 
-for n in xrange(0, 5):
+for n in range(0, 5):
 	request = race.build_request()
 	request.url('http://localhost/precisionCheck')
 
