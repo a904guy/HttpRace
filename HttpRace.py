@@ -20,19 +20,42 @@ import threading
 import socket
 import ssl
 import time
-from pprint import pprint as p
+from pprint import pprint as p, pformat as pf
 import urllib.parse as parse
 
 import socks
+from xtermcolor import colorize
+
+
+def log(msg):
+	print(colorize(msg, rgb=0xFFFFFF, bg=0x309200))
+
+
+def ready(msg):
+	print(colorize(msg, rgb=0xCCCCCC, bg=0x309200))
+
+
+def warn(msg):
+	print(colorize(msg, rgb=0xCCCCCC, bg=0x000000))
+
+
+def debug(msg):
+	print(colorize(pf(msg), rgb=0x309200, bg=0x000000))
+
+
+def error(msg):
+	print(colorize(pf(msg), rgb=0xFF0000, bg=0x000000))
 
 
 class HttpRace:
 	races = []
 	laps = 1
 	_proxy = None
+	_debug = False
 
-	def __init__(self):
-		pass
+	def __init__(self, laps=1, debug=False):
+		self._debug = debug
+		self._laps = laps
 
 	def proxy(self, proxy='localhost:8080'):
 		# Supports SOCK5 Proxies, Format 'address:port'
@@ -45,6 +68,7 @@ class HttpRace:
 		__timeout = 5
 		__CRLF = "\r\n"
 		_proxy = None
+		__debug = False
 		__proxy = None
 		__socket = None
 		__promise = None
@@ -57,7 +81,8 @@ class HttpRace:
 		_uri = None
 		_headers = {}
 
-		def __init__(self):
+		def __init__(self, debug=False):
+			self.__debug = debug
 			self.__promise = self.__Promise()
 
 		def har(self, request):
@@ -120,8 +145,7 @@ class HttpRace:
 		def prepare_run(self, proxy=None):
 			name = threading.current_thread().getName()
 
-			print('Thread: %s, Prepare Run: %s%s:%i, @ %f' % (
-				name, self._host, self._uri, self._port, time.perf_counter()))
+			log('Thread: %s, Prepare Run: %s%s:%i, @ %f' % (name, self._host, self._uri, self._port, time.perf_counter()))
 
 			# Setup Socket
 			self.__socket = socket.socket()
@@ -165,15 +189,16 @@ class HttpRace:
 			# Tell HttpRace We're Ready To Execute
 			self.__promise.status = True
 
-			print('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
+			ready('Thread: %s, Ready! @ %f' % (name, time.perf_counter()))
 
 		def execute_run(self):
 
 			name = threading.current_thread().getName()
 
-			print('Thread: %s, Executing:  %s%s:%i @ %f' % (name, self._host, self._uri, self._port, time.perf_counter()))
+			log('Thread: %s, Executing:  %s%s:%i @ %f' % (name, self._host, self._uri, self._port, time.perf_counter()))
 
-			# p(self.__socket)
+			if self.__debug:
+				self.debug()
 
 			# Send Termination Line Endings
 			self.__socket.send(str.encode("%s%s" % (self.__CRLF, self.__CRLF)))
@@ -185,7 +210,7 @@ class HttpRace:
 			self.__socket.shutdown(1)
 			self.__socket.close()
 
-			print('Thread: %s, Executed! %f' % (name, time.perf_counter()))
+			ready('Thread: %s, Executed! %f' % (name, time.perf_counter()))
 
 		def status(self):
 			return self.__promise.status
@@ -195,6 +220,16 @@ class HttpRace:
 
 			def __init__(self):
 				pass
+
+		# Helper Functions
+		def debug(self):
+			name = threading.current_thread().getName()
+			debug("Debug of Thread: %s" % name)
+			# import inspect as i
+			# p(i.getmembers(self))
+			# p(i.getmembers(self.__socket))
+			# print(self.__socket._check_connected())
+			debug(self.__dict__)
 
 	def execute(self):
 
@@ -216,6 +251,8 @@ class HttpRace:
 				ready = True
 			time.sleep(0.1)
 
+		warn("All Threads Ready. Executing")
+
 		n = 0
 		threads = []
 		start = time.perf_counter()
@@ -224,21 +261,24 @@ class HttpRace:
 			thread = threading.Thread(target=request.execute_run)
 			thread.setName(n)
 			thread.start()
+			if self._debug:
+				thread.join()
+				time.sleep(1)
 			threads.append(thread)
+
 		for thread in threads:
 			thread.join()
 		end = time.perf_counter()
 
-		print("All Threads Executed: %f" % (end - start))
+		log("All Threads Executed: %f" % (end - start))
 
 	# Helper Functions
 	def build_request(self):
-		self.races.append(self.__Request())
+		self.races.append(self.__Request(debug=self._debug))
 
 		return self.races[-1]
 
 	def har(self, har):
-
 		ret = []
 
 		import json
@@ -247,7 +287,7 @@ class HttpRace:
 
 		if 'log' in raw and 'entries' in raw['log']:
 			for n in range(0, len(raw['log']['entries']) - 1):
-				race = self.__Request()
+				race = self.__Request(debug=self._debug)
 				request = raw['log']['entries'][n]['request']  # Silly Python.
 				race.har(request)
 				ret.append(race)
@@ -256,4 +296,4 @@ class HttpRace:
 
 
 # Keep p import, Remove on release
-p('HttpRace %s by %s' % (__version__, __author__))
+log('HttpRace %s by %s' % (__version__, __author__))

@@ -29,7 +29,7 @@ defaultGroup.add_argument('--url', '-u', help='Complete URL', action='append')
 parser.add_argument('--proxy', '-py', help='Use this proxy. (http://localhost:7777)')
 
 args = parser.parse_args()
-race = HttpRace.HttpRace()
+race = HttpRace.HttpRace(debug=True)
 
 if args.proxy:
 	race.proxy(args.proxy)
